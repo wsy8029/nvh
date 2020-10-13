@@ -1,0 +1,9 @@
+구분자 1줄
+양품 8개 결과값
+불량 2개 결과값)
+
+judge_total	meastime		stage		degc		spectrum data
+LQC 판정		측정 시간			측정위치		온도		소음 데이터
+
+0 - 양품
+1 - 불량
