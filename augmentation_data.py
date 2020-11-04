@@ -1,12 +1,14 @@
 import glob
 import numpy as np
 from imblearn.over_sampling import SMOTE
+import re
 
 
 class Augmentation(object):
     def __init__(self):
-        self.file_augmented = '../augmented.txt'
+        self.file_augmented = '../eddie/ai_championship/data/202004/04/202004_FLD165NBMA_vib_spectrum_modi_train_04_split_002_augmented.txt'
         self.files = glob.glob('../lg_train/*.txt')
+        self.files = glob.glob('../eddie/ai_championship/data/202004/04/202004_FLD165NBMA_vib_spectrum_modi_train_04_split_002.txt')
         self.file_ng = '../ng.txt'
         self.data_freq = []
         self.data_label = []
@@ -26,13 +28,14 @@ class Augmentation(object):
                 # print(num_line)
                 arr = line.strip().split('\t')
                 if arr[0] == '0': # if label 0, 
-                    self.data_freq.append(arr[4:])
+                    arr[2] = int(re.findall("\d+", arr[2])[0])
+                    self.data_freq.append(arr[1:])
                     self.data_label.append(arr[0])
                     # print(len(arr[4:]))
                     # print(arr[-1])
                 cnt += 1
             f.close()
-        print(f'{num} label 0 data loaded.')
+        print(f'{cnt} label 0 data loaded.')
 
     def augment(self, num):
         self.load_data(num)
@@ -43,8 +46,8 @@ class Augmentation(object):
             line = f.readline()
             if not line: break
             arr = line.strip().split('\t')
-
-            self.data_freq.append(arr[4:]) # 0Hz to 10000Hz
+            arr[2] = int(re.findall("\d+", arr[2])[0])
+            self.data_freq.append(arr[1:]) # 0Hz to 10000Hz
             self.data_label.append(arr[0]) # label( 0 or 1 )
             cnt += 1
         f.close()

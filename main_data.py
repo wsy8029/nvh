@@ -16,10 +16,12 @@ from torchvision import datasets, transforms
 from IPython.display import Image
 from IPython import display
 import matplotlib.pyplot as plt
-from torchvision.models import resnet34, resnet101, resnet152
+from torchvision.models import resnet18, resnet34, resnet101, resnet152
 
 
 from spectrogram import Spectrogram
+
+import re
 
 
 
@@ -46,7 +48,10 @@ class TestDataset(Dataset):
     def __getitem__(self, index):
         
         # datasets[0][index][0]
+        stage_layer, degc_layer = self.feature_layer(self.train[index][2])
         img = self.sp.spec_array(self.train[index][0])
+        img = np.concatenate((img, stage_layer), axis=0)
+        img = np.concatenate((img, degc_layer), axis=0)
         img = torch.tensor(img, dtype=torch.float32)
         target = self.train[index][1]
         target = torch.tensor(target)
@@ -54,6 +59,20 @@ class TestDataset(Dataset):
     
     def __len__(self):
         return len(self.train)
+
+
+    def feature_layer(self, features):
+
+        stage = int(re.findall("\d+", features[0])[0])
+        degc = float(features[1])
+
+        stage_layer = np.full((224,224), stage, dtype = np.int8)
+        degc_layer = np.full((224,224), degc, dtype = np.float)
+
+        stage_layer = stage_layer[np.newaxis,:,:]
+        degc_layer = degc_layer[np.newaxis,:,:]
+
+        return stage_layer, degc_layer
     
     def read_data(self):
         datas = []
@@ -66,12 +85,13 @@ class TestDataset(Dataset):
                 if not line:
                     break
                 tmp = line.strip().split('\t')
-                # freq = list(map(float, tmp[4:]))
-                freq = list(map(float, tmp[1:]))
+                freq = list(map(float, tmp[4:]))
+                features = tmp[2:4]
+                # freq = list(map(float, tmp[1:]))
                 # print(freq[-1])
                 label = int(tmp[0])
                 
-                datas.append([freq,label])
+                datas.append([freq,label, features])
                 
         return datas
 
@@ -91,7 +111,10 @@ class SampleDataset(Dataset):
     def __getitem__(self, index):
         
         # datasets[0][index][0]
+        stage_layer, degc_layer = self.feature_layer(self.train[index][2])
         img = self.sp.spec_array(self.train[index][0])
+        img = np.concatenate((img, stage_layer), axis=0)
+        img = np.concatenate((img, degc_layer), axis=0)
         img = torch.tensor(img, dtype=torch.float32)
         target = self.train[index][1]
         target = torch.tensor(target)
@@ -99,6 +122,19 @@ class SampleDataset(Dataset):
     
     def __len__(self):
         return len(self.train)
+    
+    def feature_layer(self, features):
+
+        stage = int(re.findall("\d+", features[0])[0])
+        degc = float(features[1])
+
+        stage_layer = np.full((224,224), stage, dtype = np.int8)
+        degc_layer = np.full((224,224), degc, dtype = np.float)
+
+        stage_layer = stage_layer[np.newaxis,:,:]
+        degc_layer = degc_layer[np.newaxis,:,:]
+
+        return stage_layer, degc_layer
     
     def read_data(self):
         datas = []
@@ -111,11 +147,12 @@ class SampleDataset(Dataset):
                     break
                 tmp = line.strip().split('\t')
                 freq = list(map(float, tmp[4:]))
+                features = tmp[2:4]
                 # freq = list(map(float, tmp[1:]))
                 # print(freq[-1])
                 label = int(tmp[0])
                 
-                datas.append([freq,label])
+                datas.append([freq,label, features])
                 
         return datas
 
@@ -160,19 +197,58 @@ class CNN(nn.Module):
 
 
 def main():
-    train_dataset = TestDataset('../augmented.txt')
-    test_dataset = TestDataset('../augmented.txt', train=False)
-    trainloader = torch.utils.data.DataLoader(train_dataset, batch_size=2,shuffle=False, num_workers=2)
-    testloader = torch.utils.data.DataLoader(test_dataset, batch_size=2,shuffle=False, num_workers=2)
+    '''
+    f_origin = open('../eddie/ai_championship/data/202004/04/202004_FLD165NBMA_vib_spectrum_modi_train_04_split_002.txt', 'r')
+    f_ng = open('../ng.txt', 'r')
+    f_new = open('../eddie/ai_championship/data/202004/04/202004_FLD165NBMA_vib_spectrum_modi_train_04_split_002_appendng.txt', 'a')
+    num = 0
+    while True:
+        line = f_origin.readline()
+        if not line: break
+        f_new.write(line)
+        num += 1
+        print(f'{num}번째 데이터 저장')
+
+    f_origin.close()
+    num=0
+    while True:
+        line = f_ng.readline()
+        if not line: break
+        f_new.write(line)
+        num += 1
+        print(f'{num}번째 데이터 저장')
+    f_ng.close()
+    f_new.close()
+    print("데이터 병합 완료")
+    '''
+    
+    # train_dataset = TestDataset('../augmented.txt')
+    # test_dataset = TestDataset('../augmented.txt', train=False)
+    # train_dataset = TestDataset('../lg_train/202004_FLD165NBMA_vib_spectrum_modi_train.txt')
+    # print("train data load")
+    # test_dataset = TestDataset('../lg_train/202004_FLD165NBMA_vib_spectrum_modi_train.txt', train=False)
+    # print("test data load")
+
+    train_dataset = TestDataset('../eddie/ai_championship/data/202004/04/202004_FLD165NBMA_vib_spectrum_modi_train_04_split_002_appendng.txt')
+    print("train data load")
+    test_dataset = TestDataset('../eddie/ai_championship/data/202004/04/202004_FLD165NBMA_vib_spectrum_modi_train_04_split_002_appendng.txt', train=False)
+    print("test data load")
+    trainloader = torch.utils.data.DataLoader(train_dataset, batch_size=2,shuffle=True, num_workers=10)
+    print("train data loader")
+    testloader = torch.utils.data.DataLoader(test_dataset, batch_size=2,shuffle=True, num_workers=10)
+    print("train data loader")
     sample_dataset = SampleDataset('./sample_data.txt')
-    sampleloader = torch.utils.data.DataLoader(sample_dataset, batch_size=2,shuffle=False, num_workers=2)
+    sampleloader = torch.utils.data.DataLoader(sample_dataset, batch_size=2,shuffle=True, num_workers=4)
 
 
-    model_ft = resnet101(pretrained=True)
+    model_ft = resnet18(pretrained=True)
     num_ftrs = model_ft.fc.in_features
     # 여기서 각 출력 샘플의 크기는 2로 설정합니다.
     # 또는, nn.Linear(num_ftrs, len (class_names1))로 일반화할 수 있습니다.
+    # model_ft.conv1 = nn.Conv2d(5, 64, kernel_size=7, stride=2, padding=3,bias=False)
+    model_ft.conv1 = nn.Conv2d(5, 64, kernel_size=3)
     model_ft.fc = nn.Linear(num_ftrs, 2)
+    print(model_ft)
 
     model_ft = model_ft.to('cuda')
 
@@ -189,7 +265,9 @@ def main():
 
     model_ft.train()  # 학습을 위함
     for epoch in range(5):
+        print(f'epoch {epoch}')
         for index, (data, target) in enumerate(trainloader):
+            print(f'{index}')
             data = data.to('cuda')
             target = target.to('cuda')
             optimizer.zero_grad()  # 기울기 초기화
@@ -220,7 +298,7 @@ def main():
                 100. * correct / len(testloader.dataset)))
 
     # 모델 저장 및 sample data 정확도 확인
-    # torch.save(model_ft, '../model.pt')
+    torch.save(model_ft, '../model/model_peter1.pt')
 
     # model = torch.load('../model.pt')
 
@@ -232,9 +310,12 @@ def main():
         for data, target in sampleloader:
             data = data.to('cuda')
             target = target.to('cuda')
+            print(f"target : {target}")
             output = model_ft(data)
+            print(f"output : {output}")
             test_loss += criterion(output, target).item() # sum up batch loss
             pred = output.argmax(dim=1, keepdim=True) # get the index of the max log-probability
+            print(f"pred : {pred}")
             correct += pred.eq(target.view_as(pred)).sum().item()
         print('\nTest set: Average loss: {:.4f}, Accuracy: {}/{} ({:.0f}%)\n'.format(
                 test_loss, correct, len(sampleloader.dataset),
